@@ -1,0 +1,535 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IEEE Xtreme 20 | Check-in</title>
+
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #101014;
+      color: #f5f5f5;
+      font-family: Arial, sans-serif;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: auto;
+    }
+
+    .header {
+      border-bottom: 1px solid #393039;
+      padding: 12px 0 20px;
+      margin-bottom: 22px;
+    }
+
+    .tag {
+      color: #df8298;
+      font-size: 12px;
+      letter-spacing: 3px;
+      font-weight: bold;
+    }
+
+    h1 {
+      font-size: 28px;
+      margin: 10px 0;
+    }
+
+    .subtitle {
+      color: #a8a5ae;
+      font-size: 14px;
+    }
+
+    .panel {
+      background: #1a191f;
+      border: 1px solid #393039;
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      color: #c8c3cc;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    select, input {
+      width: 100%;
+      padding: 13px;
+      background: #111116;
+      color: white;
+      border: 1px solid #49404b;
+      border-radius: 8px;
+      font-size: 15px;
+      margin-bottom: 13px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 13px 15px;
+      font-weight: bold;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .buttons button { flex: 1; }
+
+    .start {
+      background: #a52b48;
+      color: white;
+    }
+
+    .stop {
+      background: #34313a;
+      color: white;
+    }
+
+    #reader {
+      width: 100%;
+      overflow: hidden;
+      border-radius: 10px;
+      margin-top: 16px;
+    }
+
+    #reader video {
+      border-radius: 10px;
+    }
+
+    .status {
+      display: none;
+      padding: 16px;
+      margin-top: 15px;
+      border-radius: 9px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .success {
+      display: block;
+      background: #153c2a;
+      border: 1px solid #2e8b57;
+      color: #b8ffd2;
+    }
+
+    .error {
+      display: block;
+      background: #451d27;
+      border: 1px solid #a83d55;
+      color: #ffc5d0;
+    }
+
+    .info {
+      display: block;
+      background: #242632;
+      border: 1px solid #4b4c60;
+      color: #dedffb;
+    }
+
+    .small {
+      color: #aaa5b0;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .result {
+      padding: 12px;
+      background: #111116;
+      border: 1px solid #393039;
+      border-radius: 8px;
+      margin-top: 10px;
+      overflow-wrap: anywhere;
+    }
+
+    .result strong {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .result button {
+      margin-top: 10px;
+      width: 100%;
+      background: #34313a;
+      color: white;
+    }
+
+    .footer {
+      text-align: center;
+      color: #77717d;
+      font-size: 11px;
+      margin: 24px 0;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="container">
+    <header class="header">
+      <div class="tag">IEEE XTREME 20</div>
+      <h1>Event Check-in</h1>
+      <div class="subtitle">ATTENDEE VERIFICATION SYSTEM</div>
+    </header>
+
+    <section class="panel">
+      <label for="session">SELECT SESSION</label>
+      <select id="session">
+        <option value="ENTRANCE">Entrance</option>
+        <option value="BREAKFAST">Breakfast</option>
+        <option value="COFFEE_1">Coffee Break 1</option>
+        <option value="COFFEE_2">Coffee Break 2</option>
+        <option value="COFFEE_3">Coffee Break 3</option>
+        <option value="COFFEE_4">Coffee Break 4</option>
+        <option value="LUNCH">Lunch</option>
+        <option value="DINNER">Dinner</option>
+      </select>
+
+      <div class="buttons">
+        <button id="startButton" class="start">Start Camera</button>
+        <button id="stopButton" class="stop" disabled>Stop Camera</button>
+      </div>
+
+      <div id="reader"></div>
+      <div id="scanStatus" class="status" role="status"></div>
+
+      <p class="small">
+        Select the correct session before scanning.
+        Each attendee can be accepted once per session.
+      </p>
+    </section>
+
+    <section class="panel">
+      <h3>Find an attendee</h3>
+      <label for="searchInput">NAME OR EMAIL</label>
+      <input id="searchInput" type="text"
+             placeholder="Enter attendee name or email">
+
+      <button id="searchButton" class="stop" style="width:100%">
+        Search Attendee
+      </button>
+
+      <div id="searchStatus" class="status" role="status"></div>
+      <div id="searchResults"></div>
+
+      <p class="small">
+        Search identifies attendees only. It does not record attendance.
+        Use the QR scanner to check someone in.
+      </p>
+    </section>
+
+    <div class="footer">
+      IEEE XTREME 20 · CHECK-IN SYSTEM
+    </div>
+  </main>
+
+  <script>
+    // Your existing Google Apps Script backend.
+    const API_URL =
+      "https://script.google.com/macros/s/AKfycbybu3UsZhkJJwMlSrMhBuCzAYO40hrbwSDI2p5la-AlDir--Sk5WA-cViDGIw3ufGym/exec";
+
+    let scanner = null;
+    let cameraRunning = false;
+    let scanBusy = false;
+    let lastToken = "";
+    let lastScanTime = 0;
+    let searchBusy = false;
+
+    const startButton = document.getElementById("startButton");
+    const stopButton = document.getElementById("stopButton");
+    const sessionSelect = document.getElementById("session");
+    const scanStatus = document.getElementById("scanStatus");
+    const searchInput = document.getElementById("searchInput");
+    const searchButton = document.getElementById("searchButton");
+    const searchStatus = document.getElementById("searchStatus");
+    const searchResults = document.getElementById("searchResults");
+
+    function showStatus(element, message, type) {
+      element.className = "status " + type;
+      element.textContent = message;
+    }
+
+    function clearStatus(element) {
+      element.className = "status";
+      element.textContent = "";
+    }
+
+    // JSONP connects this GitHub Pages website to Apps Script.
+    function callBackend(params) {
+      return new Promise((resolve, reject) => {
+        const callbackName =
+          "ieeeCallback_" + Date.now() + "_" +
+          Math.floor(Math.random() * 1000000);
+
+        const script = document.createElement("script");
+        let finished = false;
+
+        const timer = setTimeout(() => {
+          finish();
+          reject(new Error(
+            "The server did not respond. Check your internet connection and try again."
+          ));
+        }, 20000);
+
+        function finish() {
+          if (finished) return;
+          finished = true;
+          clearTimeout(timer);
+          delete window[callbackName];
+          script.remove();
+        }
+
+        window[callbackName] = function(data) {
+          finish();
+          resolve(data);
+        };
+
+        script.onerror = function() {
+          finish();
+          reject(new Error(
+            "Cannot connect to the backend. Check the Apps Script deployment."
+          ));
+        };
+
+        const query = new URLSearchParams({
+          ...params,
+          callback: callbackName
+        });
+
+        script.src = API_URL + "?" + query.toString();
+        document.body.appendChild(script);
+      });
+    }
+
+    async function startScanner() {
+      if (cameraRunning) return;
+
+      startButton.disabled = true;
+      showStatus(scanStatus, "Starting camera...", "info");
+
+      try {
+        if (!window.Html5Qrcode) {
+          throw new Error(
+            "The QR scanner library could not load. Check your internet connection."
+          );
+        }
+
+        if (!scanner) {
+          scanner = new Html5Qrcode("reader");
+        }
+
+        await scanner.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: { width: 230, height: 230 }
+          },
+          onQrDetected,
+          function() {}
+        );
+
+        cameraRunning = true;
+        stopButton.disabled = false;
+        showStatus(
+          scanStatus,
+          "Camera started. Point it at an attendee's QR code.",
+          "info"
+        );
+      } catch (error) {
+        cameraRunning = false;
+        stopButton.disabled = true;
+
+        showStatus(
+          scanStatus,
+          "Camera could not start: " +
+          (error.message || String(error)) +
+          " Make sure camera access is allowed and open this site using HTTPS.",
+          "error"
+        );
+      } finally {
+        startButton.disabled = cameraRunning;
+      }
+    }
+
+    async function stopScanner() {
+      stopButton.disabled = true;
+
+      if (scanner && cameraRunning) {
+        try {
+          await scanner.stop();
+        } catch (error) {
+          console.error("Camera stop error:", error);
+        }
+      }
+
+      cameraRunning = false;
+      scanBusy = false;
+      startButton.disabled = false;
+
+      showStatus(scanStatus, "Camera stopped.", "info");
+    }
+
+    async function onQrDetected(decodedText) {
+      const token = String(decodedText || "").trim();
+      if (!token || scanBusy) return;
+
+      const now = Date.now();
+
+      // Avoid immediately processing the same QR repeatedly.
+      if (token === lastToken && now - lastScanTime < 3000) return;
+
+      scanBusy = true;
+      lastToken = token;
+      lastScanTime = now;
+
+      showStatus(scanStatus, "Checking ticket...", "info");
+
+      try {
+        const data = await callBackend({
+          api: "scan",
+          token: token,
+          sessionId: sessionSelect.value
+        });
+
+        if (data && data.ok) {
+          showStatus(
+            scanStatus,
+            "✓ ACCEPTED\n" +
+            (data.name || "Attendee") +
+            "\nSession: " + (data.session || sessionSelect.value) +
+            "\n" + (data.message || "Attendance recorded."),
+            "success"
+          );
+        } else {
+          showStatus(
+            scanStatus,
+            "✕ NOT ACCEPTED\n" +
+            (data && data.message
+              ? data.message
+              : "Invalid ticket or already checked in."),
+            "error"
+          );
+        }
+      } catch (error) {
+        showStatus(scanStatus, error.message, "error");
+      } finally {
+        setTimeout(() => {
+          scanBusy = false;
+        }, 1200);
+      }
+    }
+
+    async function searchAttendee() {
+      const query = searchInput.value.trim();
+
+      if (!query) {
+        showStatus(
+          searchStatus,
+          "Enter a name or email first.",
+          "error"
+        );
+        return;
+      }
+
+      if (searchBusy) return;
+
+      searchBusy = true;
+      searchButton.disabled = true;
+      searchResults.replaceChildren();
+      showStatus(searchStatus, "Searching...", "info");
+
+      try {
+        const data = await callBackend({
+          api: "search",
+          query: query
+        });
+
+        if (!Array.isArray(data) || data.length === 0) {
+          showStatus(
+            searchStatus,
+            "No matching attendee found.",
+            "error"
+          );
+          return;
+        }
+
+        clearStatus(searchStatus);
+
+        data.forEach(attendee => {
+          const card = document.createElement("div");
+          card.className = "result";
+
+          const name = document.createElement("strong");
+          name.textContent = attendee.name || "Unknown name";
+          card.appendChild(name);
+
+          const email = document.createElement("div");
+          email.textContent = attendee.email || "";
+          card.appendChild(email);
+
+          const note = document.createElement("p");
+          note.className = "small";
+          note.textContent =
+            "Identification only — attendance not recorded.";
+          card.appendChild(note);
+
+          searchResults.appendChild(card);
+        });
+      } catch (error) {
+        showStatus(searchStatus, error.message, "error");
+      } finally {
+        searchBusy = false;
+        searchButton.disabled = false;
+      }
+    }
+
+    startButton.addEventListener("click", startScanner);
+    stopButton.addEventListener("click", stopScanner);
+    searchButton.addEventListener("click", searchAttendee);
+
+    searchInput.addEventListener("keydown", event => {
+      if (event.key === "Enter") searchAttendee();
+    });
+
+    // Test the backend when the page loads.
+    window.addEventListener("load", async () => {
+      try {
+        const result = await callBackend({ api: "ping" });
+
+        if (result && result.ok) {
+          showStatus(
+            scanStatus,
+            "Backend connected. Select a session and start the camera.",
+            "success"
+          );
+        } else {
+          showStatus(
+            scanStatus,
+            "The backend responded, but its status was unexpected.",
+            "error"
+          );
+        }
+      } catch (error) {
+        showStatus(scanStatus, error.message, "error");
+      }
+    });
+  </script>
+</body>
+</html>
