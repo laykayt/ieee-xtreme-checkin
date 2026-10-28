@@ -489,6 +489,76 @@
           note.textContent =
             "Identification only — attendance not recorded.";
           card.appendChild(note);
+          
+          const manualButton = document.createElement("button");
+          manualButton.textContent =
+            "Manual Check-in — " +
+            sessionSelect.options[sessionSelect.selectedIndex].text;
+
+          manualButton.style.background = "#a52b48";
+          manualButton.style.color = "#ffffff";
+          manualButton.style.width = "100%";
+
+          manualButton.addEventListener("click", async () => {
+            if (manualButton.disabled) return;
+
+            const selectedSession = sessionSelect.value;
+
+            const confirmed = window.confirm(
+              "Record attendance for " +
+              (attendee.name || attendee.email) +
+              " in " +
+              sessionSelect.options[sessionSelect.selectedIndex].text +
+              "?"
+            );
+
+            if (!confirmed) return;
+
+            manualButton.disabled = true;
+            manualButton.textContent = "Processing...";
+
+            try {
+              const result = await callBackend({
+                api: "manual",
+                email: attendee.email || "",
+                sessionId: selectedSession
+              });
+
+              if (result && result.ok) {
+                showStatus(
+                  searchStatus,
+                  "✓ ACCEPTED\n" +
+                  (result.name || attendee.name || attendee.email) +
+                  "\nSession: " +
+                  (result.session || selectedSession) +
+                  "\n" +
+                  (result.message || "Attendance recorded."),
+                  "success"
+                );
+
+                manualButton.textContent = "✓ Checked in";
+              } else {
+                showStatus(
+                  searchStatus,
+                  "✕ NOT ACCEPTED\n" +
+                  (result && result.message
+                    ? result.message
+                    : "Attendance was not recorded."),
+                  "error"
+                );
+
+                manualButton.disabled = false;
+                manualButton.textContent = "Try Manual Check-in Again";
+              }
+            } catch (error) {
+              showStatus(searchStatus, error.message, "error");
+              manualButton.disabled = false;
+              manualButton.textContent = "Try Manual Check-in Again";
+            }
+          });
+
+          card.appendChild(manualButton);
+
 
           searchResults.appendChild(card);
         });
